@@ -71,11 +71,11 @@ class SAGPool(torch.nn.Module):
         # scoreo = self.norm_score(self.score_layer(self.lin(x), edge_index)).squeeze()
         # score_pagerank = self.norm_pg_score(pagerank(p=0.8, x=x, edge_index=edge_index)).squeeze()
 
-        #scoreo = self.score_layer(self.lin(x), edge_index).squeeze()
-        #scoreo = torch.nn.functional.softmax(scoreo)
+        scoreo = self.score_layer(self.lin(x), edge_index).squeeze()
+        scoreo = torch.nn.functional.softmax(scoreo)
         score_pagerank = norm_tensor(pagerank(p=0.2, x=x, edge_index=edge_index)).squeeze()
 
-        score = score_pagerank
+        score = score_pagerank + score_pagerank
 
         # score = torch.mul(self.weight_u1, scoreo) + torch.mul(self.weight_u2, score_pagerank)
         # score = score.squeeze()
@@ -125,24 +125,8 @@ def norm_tensor(vector):
     return normalised
 
 def pagerank(p=0.8,x=None,edge_index=None):
-    """
-    v = torch.zeros(x.size(0),1,device=edge_index.device)
-    adj = spare_to_dense(x,edge_index)
-    for i in range(x.size(0)):
-        v[i] = float(1) / x.size(0)
-    i = 1
-    csr_adj = adj.to_sparse()
-    while(True):
-        #v = p * torch.matmul(adj,v) + (1 - p) * v
-        v = p * torch.sparse.FloatTensor.mm(csr_adj,v) + (1 - p) * v
-        i = i + 1
-        if i >= 10:
-            break     
-    return v
-    """
     v = torch.full((x.size(0),1),float(1)/x.size(0),device = edge_index.device)
-    adj = edge2sparse(x,edge_index)
-                                                    
+    adj = edge2sparse(x,edge_index)                                         
     unit = torch.full((x.size(0),x.size(0)),float(1)/x.size(0),device = edge_index.device)
                                                             
     for i in range(10):
