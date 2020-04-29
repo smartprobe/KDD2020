@@ -1,10 +1,9 @@
 from torch_geometric.nn import GCNConv,APPNP
-from torch_geometric.nn.pool.topk_pool import filter_adj
+from torch_geometric.nn.pool.topk_pool import filter_adj, topk
 from torch.nn import Parameter
 from torch.autograd import Variable
 import torch
-from utils import cus_topk as topk
-from torch_geometric.utils import degree
+#from utils import cus_topk as topk
 
 
 class SAGPool(torch.nn.Module):
@@ -34,7 +33,7 @@ class SAGPool(torch.nn.Module):
         self.ratio = ratio
         # self.score_layer = Conv(in_channels,1)
         self.lin = torch.nn.Linear(in_channels, 1)
-        self.score_layer =Conv(K=10, alpha=0.2)
+        self.score_layer =Conv(K=10, alpha=0.1)
         self.non_linearity = non_linearity
 
         self.norm_score = torch.nn.BatchNorm1d(1)
@@ -72,11 +71,11 @@ class SAGPool(torch.nn.Module):
         # scoreo = self.norm_score(self.score_layer(self.lin(x), edge_index)).squeeze()
         # score_pagerank = self.norm_pg_score(pagerank(p=0.8, x=x, edge_index=edge_index)).squeeze()
 
-        scoreo = self.score_layer(self.lin(x), edge_index).squeeze()
+        #scoreo = self.score_layer(self.lin(x), edge_index).squeeze()
         #scoreo = torch.nn.functional.softmax(scoreo)
-        #score_pagerank = norm_tensor(pagerank(p=0.2, x=x, edge_index=edge_index)).squeeze().cuda()
+        score_pagerank = norm_tensor(pagerank(p=0.2, x=x, edge_index=edge_index)).squeeze()
 
-        score = scoreo 
+        score = score_pagerank
 
         # score = torch.mul(self.weight_u1, scoreo) + torch.mul(self.weight_u2, score_pagerank)
         # score = score.squeeze()
@@ -126,20 +125,26 @@ def norm_tensor(vector):
     return normalised
 
 def pagerank(p=0.8,x=None,edge_index=None):
-    v = torch.full((x.size(0),1),float(1)/x.size(0),device = edge_index.device)
     """
-    row, col = edge_index
-    deg = degree(row, x.size(0))
-    deg_matrix = torch.zeros(x.size(0), x.size(0), device = edge_index.device)
+    v = torch.zeros(x.size(0),1,device=edge_index.device)
+    adj = spare_to_dense(x,edge_index)
     for i in range(x.size(0)):
-        deg_matrix[i][i] = deg[i]	
-    deg_inv = deg_matrix.pow(-1)
-    """	
+        v[i] = float(1) / x.size(0)
+    i = 1
+    csr_adj = adj.to_sparse()
+    while(True):
+        #v = p * torch.matmul(adj,v) + (1 - p) * v
+        v = p * torch.sparse.FloatTensor.mm(csr_adj,v) + (1 - p) * v
+        i = i + 1
+        if i >= 10:
+            break     
+    return v
+    """
+    v = torch.full((x.size(0),1),float(1)/x.size(0),device = edge_index.device)
     adj = edge2sparse(x,edge_index)
-    #A = torch.sparse.FloatTensor.matmul(adj,deg_inv)
-	
+                                                    
     unit = torch.full((x.size(0),x.size(0)),float(1)/x.size(0),device = edge_index.device)
-	
+                                                            
     for i in range(10):
         v = (1-p) * torch.sparse.FloatTensor.matmul(adj, v) + p * torch.sparse.FloatTensor.matmul(unit, v)
     return v
@@ -151,7 +156,6 @@ def spare_to_dense(x,edge_index):
     #     adj[row[i],col[i]]=1
     adj[row,col]=1
     return adj
-
 def edge2sparse(x,edge_index):
     v = torch.ones((edge_index.shape[1]),dtype=torch.float,device=edge_index.device)
     adj = torch.sparse.FloatTensor(edge_index, v, (x.shape[0],x.shape[0]))
