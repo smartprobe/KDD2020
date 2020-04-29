@@ -76,7 +76,7 @@ class SAGPool(torch.nn.Module):
         scoreo = torch.nn.functional.softmax(scoreo)
         score_pagerank = norm_tensor(pagerank(p=0.2, x=x, edge_index=edge_index)).squeeze().cuda()
 
-        score = scoreo 
+        score = scoreo + score_pagerank
 
         # score = torch.mul(self.weight_u1, scoreo) + torch.mul(self.weight_u2, score_pagerank)
         # score = score.squeeze()
