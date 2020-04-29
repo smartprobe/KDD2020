@@ -124,7 +124,7 @@ def norm_tensor(vector):
         normalised = torch.zeros(vector.size())
     return normalised
 
-def pagerank(p=0.8,x=None,edge_index=None):
+def pagerank(p=0.2,x=None,edge_index=None):
     v = torch.full((x.size(0),1),float(1)/x.size(0),device = edge_index.device)
     adj = edge2sparse(x,edge_index)                                         
     unit = torch.full((x.size(0),x.size(0)),float(1)/x.size(0),device = edge_index.device)
